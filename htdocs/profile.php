@@ -3,76 +3,65 @@ session_start();
 include 'C:/MAMP/htdocs/database/db_connect.php'; // Ensure this points to your database connection file
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
+
 $message = "";
 $toastClass = "";
 
-// Handle the form submission
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $username = $_POST['username']; 
-
-    // Check if username exists and password matches
-    $stmt = $conn->prepare("SELECT name, surname, gender, description FROM profiledata WHERE username = ?");
-    $stmt->bind_param("s", $username);
-    $stmt->execute();
-    $stmt->store_result();
-    $_SESSION['id'] = $user_id; // Store user ID in session
-    $_SESSION['username'] = $username; // Change email to username
-    $_SESSION['name'] = $name; // Store user's name in session
-    $_SESSION['surname'] = $surname; // Store user's surname in session
-
-
-}
-
-// Fetch user details for the profile edit (if user is logged in)
-if (isset($_SESSION['id'])) {
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_profile'])) {
+    $name = $_POST['name'];
+    $surname = $_POST['surname'];
+    $gender = $_POST['gender'];
+    $description = $_POST['description'];
     $userId = $_SESSION['id'];
-    $stmt = $conn->prepare("SELECT name, surname, gender, description FROM profiledata WHERE id = ?");
-    $stmt->bind_param("i", $userId);
-    $stmt->execute();
-    $stmt->bind_result($row['name'], $row['surname'], $row['gender'], $row['description']);
-    $stmt->fetch();
+
+    $stmt = $conn->prepare("UPDATE profiledata SET name = ?, surname = ?, gender = ?, description = ? WHERE id = ?");
+    if (!$stmt) {
+        die("Preparation failed: " . $conn->error);
+    }
+    $stmt->bind_param("ssssi", $name, $surname, $gender, $description, $userId);
+
+    if ($stmt->execute()) {
+        $message = "Profile updated successfully!";
+        $toastClass = "alert-success";
+        $_SESSION['name'] = $name;
+        $_SESSION['surname'] = $surname;
+        $_SESSION['gender'] = $gender;
+        $_SESSION['description'] = $description;
+    } else {
+        $message = "Failed to update profile. Error: " . $stmt->error;
+        $toastClass = "alert-danger";
+    }
+
     $stmt->close();
+} else {
+    if (isset($_SESSION['id'])) {
+        $userId = $_SESSION['id'];
+        $stmt = $conn->prepare("SELECT * FROM profiledata WHERE id = ?");
+        if (!$stmt) {
+            die("Preparation failed: " . $conn->error);
+        }
+        $stmt->bind_param("i", $userId);
+        $stmt->execute();
+        $stmt->store_result();
+
+        if ($stmt->num_rows > 0) {
+            $stmt->bind_result($user_id, $username, $surname, $description, $gender);
+            $stmt->fetch();
+            $_SESSION['username'] = $username;
+            $_SESSION['surname'] = $surname;
+            $_SESSION['description'] = $description;
+            $_SESSION['gender'] = $gender;
+        }
+        $stmt->close();
+    }
 }
+
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<link rel="icon" type="image/png" href="/favicon-48x48.png" sizes="48x48" />
-<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<link rel="shortcut icon" href="/favicon.ico" />
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Projectly login</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<head>
-    <style>
-        .profile-pic-cell {
-            text-align: center; /* Center horizontally */
-            vertical-align: middle; /* Center vertically */
-            height: 150px; /* Adjust the height if necessary */
-        }
-        .form-label {
-            font-size: 18px; /* Adjust size for labels */
-        }
-
-        .form-control {
-            font-size: 18px; /* Adjust size for input fields */
-        }
-
-        .table th {
-            font-size: 18px; /* Adjust size for table headers */
-        }
-
-        .table td {
-            font-size: 18px; /* Adjust size for table data cells */
-        }
-        .form-control {
-            height: 50px; /* Adjust this value to change the height of other input fields */
-        }
+<style>
         .history {
             display: flex;
             align-items: center;
@@ -99,7 +88,7 @@ if (isset($_SESSION['id'])) {
             display: flex;
             align-items: center;
         }
-        
+
         .profile-icon, .create-icon, .home-icon {
             max-width: 20px;
             max-height: 20px;
@@ -108,7 +97,6 @@ if (isset($_SESSION['id'])) {
             height: auto;
             position: relative;
             top: 3px;
-            margin-top: -10px;
         }
 
         /* General Styles */
@@ -188,7 +176,7 @@ if (isset($_SESSION['id'])) {
         }
 
         .category-button {
-            width: 44%;
+            width: 30%;
             padding: 30px;
             background-color: #007bff;
             color: white;
@@ -198,6 +186,8 @@ if (isset($_SESSION['id'])) {
             cursor: pointer;
             transition: background-color 0.3s;
             text-decoration: none; /* Remove underline from links */
+            height: 100px;
+            
         }
 
         .category-button:hover {
@@ -256,79 +246,77 @@ if (isset($_SESSION['id'])) {
             text-decoration: none;
         }
     </style>
-
-    <div class="header">
-        <h1>Projectly</h1>
-    </div>
-    
+    <link rel="icon" type="image/png" href="/favicon-48x48.png" sizes="48x48" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Page</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
 <body class="bg-light">
-    <div class="container p-5 d-flex flex-column align-items-center">
-        <?php if ($message): ?>
-            <div class="alert text-white <?php echo $toastClass; ?> w-100 text-center" role="alert">
-                <?php echo $message; ?>
-            </div>
-        <?php endif; ?>
-
-        <form method="post">
-            <table class="table table-striped" style="width:1000px; height:600px;">
-                <h1><th colspan="2" style="font-size: 50px; text-align: center;">User Details:</th></h1> 
-                <tr>
-                    <th class="profile-pic-cell">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="150" height="150" fill="currentColor" class="bi bi-person-circle" viewBox="0 0 16 16">
-                            <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/>
-                            <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1"/>
-                        </svg>
-                    </th>
-                </tr>
-                <tr>
-                    <th><i class="bi bi-person-circle"></i> First name</th>
-                    <td>
-                        <input value="<?= isset($row['name']) ? $row['name'] : '' ?>" type="text" class="form-control" name="name" placeholder="Name">
-                        <div><small class="js-error js-error-firstname text-danger"></small></div>
-                    </td>
-                </tr>
-                <tr>
-                    <th><i class="bi bi-person-square"></i> Last name</th>
-                    <td>
-                        <input value="<?= isset($row['surname']) ? $row['surname'] : '' ?>" type="text" class="form-control" name="surname" placeholder="Surname">
-                        <div><small class="js-error js-error-lastname text-danger"></small></div>
-                    </td>
-                </tr>
-                <tr>
-                    <th><i class="bi bi-person-square"></i> General description</th>
-                    <td>
-                        <textarea name="description" class="form-control" placeholder="Description" style="height: 300px;"><?= isset($row['description']) ? $row['description'] : '' ?></textarea>
-                    </td>
-                </tr>
-                <tr>
-                    <th><i class="bi bi-gender-ambiguous"></i> Gender</th>
-                    <td>
-                        <select name="gender" class="form-select form-select mb-3" aria-label=".form-select-lg example">
-                            <option value="">--Select Gender--</option>
-                            <option selected value="<?= isset($row['gender']) ? $row['gender'] : '' ?>"><?= isset($row['gender']) ? $row['gender'] : '' ?></option>
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
-                        </select>
-                        <div><small class="js-error js-error-gender text-danger"></small></div>
-                    </td>
-                </tr>
-            </table>
-
-            <div class="progress my-3 d-none">
-                <div class="progress-bar" role="progressbar" style="width: 50%;">Working... 25%</div>
-            </div>
-
-            <div class="p-2">
-                <button class="btn btn-primary float-end">Save</button>
-                <a href="index.php">
-                    <label class="btn btn-secondary">Back</label>
-                </a>
-            </div>
-        </form>
-
-        <div class="footer-nav">
-            <a href="index.php"><img src="pictures/home-icon.png" alt="Home Icon" class="home-icon">Home</a>
+<div class="header">
+    <h1>Projectly</h1>
+</div>
+<div class="container p-5 d-flex flex-column align-items-center">
+    <?php if ($message): ?>
+        <div class="alert text-white <?php echo $toastClass; ?> w-100 text-center" role="alert">
+            <?php echo $message; ?>
         </div>
+    <?php endif; ?>
+
+    <form method="post">
+        <table class="table table-striped" style="width:1000px; height:600px;">
+            <h1><th colspan="2" style="font-size: 50px; text-align: center;"><?php echo htmlspecialchars($_SESSION['username']); ?>'s Details:</th></h1>
+            <tr>
+                <th class="profile-pic-cell">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="150" height="150" fill="currentColor" class="bi bi-person-circle" viewBox="0 0 16 16">
+                        <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/>
+                        <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1"/>
+                    </svg>
+                </th>
+            </tr>
+            <tr>
+                <th>First Name</th>
+                <td>
+                    <input type="text" name="name" id="name" class="form-control" 
+                           value="<?= isset($_SESSION['name']) ? htmlspecialchars($_SESSION['name']) : ''; ?>" required>
+                </td>
+            </tr>
+            <tr>
+                <th>Last Name</th>
+                <td>
+                    <input type="text" name="surname" id="surname" class="form-control" 
+                           value="<?= isset($_SESSION['surname']) ? htmlspecialchars($_SESSION['surname']) : ''; ?>" required>
+                </td>
+            </tr>
+            <tr>
+                <th>General Description</th>
+                <td>
+                    <textarea name="description" id="description" class="form-control" required><?= isset($_SESSION['description']) ? htmlspecialchars($_SESSION['description']) : ''; ?></textarea>
+                </td>
+            </tr>
+            <tr>
+                <th>Gender</th>
+                <td>
+                    <select name="gender" class="form-select form-select mb-3" aria-label=".form-select-lg example" required>
+                        <option value="">--Select Gender--</option>
+                        <option value="Male" <?= (isset($_SESSION['gender']) && $_SESSION['gender'] == 'Male') ? 'selected' : ''; ?>>Male</option>
+                        <option value="Female" <?= (isset($_SESSION['gender']) && $_SESSION['gender'] == 'Female') ? 'selected' : ''; ?>>Female</option>
+                    </select>
+                </td>
+            </tr>
+        </table>
+
+        <div class="p-2">
+            <button type="submit" name="update_profile" class="btn btn-primary float-end">Save</button>
+            <a href="index.php">
+                <label class="btn btn-secondary">Back</label>
+            </a>
+        </div>
+    </form>
+
+    <div class="footer-nav">
+        <a href="index.php"><img src="pictures/home-icon.png" alt="Home Icon" class="home-icon">Home</a>
     </div>
+</div>
 </body>
 </html>
