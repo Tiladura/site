@@ -315,7 +315,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_profile'])) {
     </form>
 
     <div class="footer-nav">
-        <a href="index.php"><img src="pictures/home-icon.png" alt="Home Icon" class="home-icon">Home</a>
+        <a href="index.php"><img src="pictures/home-icon.png" alt="Home Icon" class="home-icon" style="margin-bottom:10px;">Home</a>
     </div>
 </div>
 </body>
