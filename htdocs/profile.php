@@ -14,15 +14,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_profile'])) {
     $description = $_POST['description'];
     $userId = $_SESSION['id'];
 
+    // Prepare and execute the update statement
     $stmt = $conn->prepare("UPDATE profiledata SET name = ?, surname = ?, gender = ?, description = ? WHERE id = ?");
     if (!$stmt) {
         die("Preparation failed: " . $conn->error);
     }
     $stmt->bind_param("ssssi", $name, $surname, $gender, $description, $userId);
-
+    
     if ($stmt->execute()) {
         $message = "Profile updated successfully!";
         $toastClass = "alert-success";
+        // Update session data
         $_SESSION['name'] = $name;
         $_SESSION['surname'] = $surname;
         $_SESSION['gender'] = $gender;
@@ -31,31 +33,29 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_profile'])) {
         $message = "Failed to update profile. Error: " . $stmt->error;
         $toastClass = "alert-danger";
     }
-
-    $stmt->close();
-} else {
-    if (isset($_SESSION['id'])) {
-        $userId = $_SESSION['id'];
-        $stmt = $conn->prepare("SELECT * FROM profiledata WHERE id = ?");
-        if (!$stmt) {
-            die("Preparation failed: " . $conn->error);
+    if ($stmt->execute()) {
+        if ($stmt->affected_rows > 0) {
+            $message = "Profile updated successfully!";
+        } else {
+            $message = "No rows were updated. Data might be the same.";
         }
-        $stmt->bind_param("i", $userId);
-        $stmt->execute();
-        $stmt->store_result();
-
-        if ($stmt->num_rows > 0) {
-            $stmt->bind_result($user_id, $username, $surname, $description, $gender);
-            $stmt->fetch();
-            $_SESSION['username'] = $username;
-            $_SESSION['surname'] = $surname;
-            $_SESSION['description'] = $description;
-            $_SESSION['gender'] = $gender;
-        }
-        $stmt->close();
     }
+    $stmt->close();
 }
 
+// Fetch user profile data if session ID exists
+if (isset($_SESSION['id'])) {
+    $userId = $_SESSION['id'];
+    $stmt = $conn->prepare("SELECT name, surname, gender, description FROM profiledata WHERE id = ?");
+    if (!$stmt) {
+        die("Preparation failed: " . $conn->error);
+    }
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $stmt->bind_result($name, $surname, $gender, $description);
+    $stmt->fetch();
+    $stmt->close();
+}
 ?>
 
 <!DOCTYPE html>
@@ -263,17 +263,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_profile'])) {
         </div>
     <?php endif; ?>
 
-    <form method="post">
-        <table class="table table-striped" style="width:1000px; height:600px;">
+    <form method="POST">
+        <table class="table table-striped" style="width:1000px; height:600px; text-align: center;">
             <h1><th colspan="2" style="font-size: 50px; text-align: center;"><?php echo htmlspecialchars($_SESSION['username']); ?>'s Details:</th></h1>
             <tr>
                 <th class="profile-pic-cell">
                     <svg xmlns="http://www.w3.org/2000/svg" width="150" height="150" fill="currentColor" class="bi bi-person-circle" viewBox="0 0 16 16">
                         <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/>
                         <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1"/>
+
                     </svg>
+                    <td ><button style="    position: relative;
+    top: 50%;
+    transform: translateY(-50%); transform: translateX(-113%);">Upload profile picture</button>
+    </td>
                 </th>
+                
             </tr>
+            
             <tr>
                 <th>First Name</th>
                 <td>
