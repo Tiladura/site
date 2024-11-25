@@ -1,44 +1,58 @@
 <?php
 session_start();
-include 'C:/MAMP/htdocs/database/db_connect.php'; // Ensure this points to your database connection file
+include 'C:/MAMP/htdocs/database/db_connect.php'; // Make sure this path is correct
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+// Check the database connection
+if ($conn->connect_error) {
+    die("Connection to profiledata database failed: " . $conn->connect_error);
+}
+
+// Initialize message variables
 $message = "";
 $toastClass = "";
 
+// Insert profile if form is submitted
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_profile'])) {
     $name = $_POST['name'];
     $surname = $_POST['surname'];
     $gender = $_POST['gender'];
-    $description = $_POST['description'];
-    $userId = $_SESSION['id'];
+    $description = trim($_POST['description']);
+    $userId = $_SESSION['id']; // Assuming `id` is stored in the session
 
-    // Prepare and execute the update statement
-    $stmt = $conn->prepare("UPDATE profiledata SET name = ?, surname = ?, gender = ?, description = ? WHERE id = ?");
+    // Insert or update the record
+    $stmt = $conn->prepare("
+        INSERT INTO profiledata (id, name, surname, gender, description)
+        VALUES (?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            name = VALUES(name),
+            surname = VALUES(surname),
+            gender = VALUES(gender),
+            description = VALUES(description)
+    ");
+    
     if (!$stmt) {
         die("Preparation failed: " . $conn->error);
     }
-    $stmt->bind_param("ssssi", $name, $surname, $gender, $description, $userId);
+    $stmt->bind_param("issss", $userId, $name, $surname, $gender, $description);
     
-    if ($stmt->execute()) {
-        $message = "Profile updated successfully!";
-        $toastClass = "alert-success";
-        // Update session data
-        $_SESSION['name'] = $name;
-        $_SESSION['surname'] = $surname;
-        $_SESSION['gender'] = $gender;
-        $_SESSION['description'] = $description;
-    } else {
-        $message = "Failed to update profile. Error: " . $stmt->error;
-        $toastClass = "alert-danger";
-    }
     if ($stmt->execute()) {
         if ($stmt->affected_rows > 0) {
             $message = "Profile updated successfully!";
+            $toastClass = "alert-success";
+            // Update session data
+            $_SESSION['name'] = $name;
+            $_SESSION['surname'] = $surname;
+            $_SESSION['gender'] = $gender;
+            $_SESSION['description'] = trim($description_from_db);
         } else {
-            $message = "No rows were updated. Data might be the same.";
+            $message = "No changes made to the profile.";
+            $toastClass = "alert-warning";
         }
+    } else {
+        $message = "Failed to update profile. Error: " . $stmt->error;
+        $toastClass = "alert-danger";
     }
     $stmt->close();
 }
@@ -58,21 +72,23 @@ if (isset($_SESSION['id'])) {
 }
 ?>
 
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<style>
+    <style>
         .history {
             display: flex;
             align-items: center;
             text-decoration: none;
         }
-        .fuck{
+
+        .fuck {
             text-decoration: none;
             color: white;
         }
 
-        /* Scale and align the icon */
         .history-icon {
             max-width: 20px;
             max-height: 20px;
@@ -99,7 +115,6 @@ if (isset($_SESSION['id'])) {
             top: 3px;
         }
 
-        /* General Styles */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -108,15 +123,13 @@ if (isset($_SESSION['id'])) {
             padding-bottom: 50px;
         }
 
-        /* Container */
         .container {
             width: 80%;
             margin: 0 auto;
             padding: 20px;
-            bottom-padding: 100px;
+            padding-bottom: 100px;
         }
 
-        /* Header */
         .header {
             display: flex;
             justify-content: space-between;
@@ -124,112 +137,13 @@ if (isset($_SESSION['id'])) {
             padding: 10px;
             background-color: #007bff;
             color: white;
-            text-decoration: none;
-            
         }
 
         .header h1 {
             font-size: 24px;
-            text-decoration: none;
             margin-left: 100px;
         }
 
-        /* Search Bar */
-        .search-bar {
-            display: flex;
-            align-items: center;
-            margin-top: 20px;
-            justify-content: flex-end; /* Aligns the search bar to the right */
-            margin-left: -100px; /* Adjust this value to move the search bar left */
-        }
-        .search-bar input {
-            width: 80%;
-            padding: 10px;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-            margin-left: 20px;
-            margin-top: -20px;
-        }
-
-        .search-bar button {
-            padding: 10px 20px;
-            margin-left: 20px;
-            border: none;
-            background-color: #007bff;
-            color: white;
-            border-radius: 5px;
-            margin-top: -20px;
-            margin-left: 20px;
-
-        }
-
-        /* Category Sections */
-        .categories {
-            display: flex;
-            justify-content: space-around;
-            margin-top: 50px;
-        }
-        .categories2{
-            display: flex;
-            justify-content: space-around;
-            margin-top: 6px;
-        }
-
-        .category-button {
-            width: 30%;
-            padding: 30px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            text-align: center;
-            cursor: pointer;
-            transition: background-color 0.3s;
-            text-decoration: none; /* Remove underline from links */
-            height: 100px;
-            
-        }
-
-        .category-button:hover {
-            background-color: #0056b3; /* Darker blue on hover */
-        }
-
-        .category-button h3, .category-button p {
-            margin: 0; /* Remove default margins */
-        }
-
-        /* Recommendations Section */
-        .recommendations {
-            margin-top: 30px;
-        }
-
-        .recommendations h2 {
-            margin-bottom: 10px;
-        }
-
-        .recommendation-block {
-            display: flex;
-            align-items: center;
-            margin-bottom: 15px;
-            background-color: white;
-            padding: 15px;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-
-        .recommendation-block img {
-            width: 100px;
-            height: 100px;
-            margin-right: 15px;
-            border-radius: 5px;
-        }
-
-        .recommendation-block p {
-            margin: 0;
-            font-size: 16px;
-        }
-
-        /* Footer Navigation */
         .footer-nav {
             display: flex;
             justify-content: space-around;
@@ -265,40 +179,45 @@ if (isset($_SESSION['id'])) {
 
     <form method="POST">
         <table class="table table-striped" style="width:1000px; height:600px; text-align: center;">
-            <h1><th colspan="2" style="font-size: 50px; text-align: center;"><?php echo htmlspecialchars($_SESSION['username']); ?>'s Details:</th></h1>
+            <h1>
+                <th colspan="2" style="font-size: 50px; text-align: center;">
+                    <?= htmlspecialchars($_SESSION['username']); ?>'s Details:
+                </th>
+            </h1>
             <tr>
                 <th class="profile-pic-cell">
                     <svg xmlns="http://www.w3.org/2000/svg" width="150" height="150" fill="currentColor" class="bi bi-person-circle" viewBox="0 0 16 16">
                         <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/>
                         <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1"/>
-
                     </svg>
-                    <td ><button style="    position: relative;
-    top: 50%;
-    transform: translateY(-50%); transform: translateX(-113%);">Upload profile picture</button>
-    </td>
                 </th>
-                
+                <td>
+                    <button style="position: relative; top: 50%; transform: translateY(-50%) translateX(-113%);">
+                        Upload profile picture
+                    </button>
+                </td>
             </tr>
-            
             <tr>
                 <th>First Name</th>
                 <td>
                     <input type="text" name="name" id="name" class="form-control" 
-                           value="<?= isset($_SESSION['name']) ? htmlspecialchars($_SESSION['name']) : ''; ?>" required>
+                           value="<?= isset($name) ? htmlspecialchars($name) : ''; ?>" required>
                 </td>
             </tr>
             <tr>
                 <th>Last Name</th>
                 <td>
                     <input type="text" name="surname" id="surname" class="form-control" 
-                           value="<?= isset($_SESSION['surname']) ? htmlspecialchars($_SESSION['surname']) : ''; ?>" required>
+                           value="<?= isset($surname) ? htmlspecialchars($surname) : ''; ?>" required>
                 </td>
             </tr>
             <tr>
+                
                 <th>General Description</th>
                 <td>
-                    <textarea name="description" id="description" class="form-control" required><?= isset($_SESSION['description']) ? htmlspecialchars($_SESSION['description']) : ''; ?></textarea>
+                    <textarea name="description" id="description" class="form-control" required>
+                        <?= isset($description)?htmlspecialchars($description):'';?>
+                    </textarea>
                 </td>
             </tr>
             <tr>
@@ -306,8 +225,8 @@ if (isset($_SESSION['id'])) {
                 <td>
                     <select name="gender" class="form-select form-select mb-3" aria-label=".form-select-lg example" required>
                         <option value="">--Select Gender--</option>
-                        <option value="Male" <?= (isset($_SESSION['gender']) && $_SESSION['gender'] == 'Male') ? 'selected' : ''; ?>>Male</option>
-                        <option value="Female" <?= (isset($_SESSION['gender']) && $_SESSION['gender'] == 'Female') ? 'selected' : ''; ?>>Female</option>
+                        <option value="Male" <?= isset($gender) && $gender === 'Male' ? 'selected' : ''; ?>>Male</option>
+                        <option value="Female" <?= isset($gender) && $gender === 'Female' ? 'selected' : ''; ?>>Female</option>
                     </select>
                 </td>
             </tr>
