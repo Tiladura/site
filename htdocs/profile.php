@@ -215,9 +215,7 @@ if (isset($_SESSION['id'])) {
                 
                 <th>General Description</th>
                 <td>
-                    <textarea name="description" id="description" class="form-control" required>
-                        <?= isset($description)?htmlspecialchars($description):'';?>
-                    </textarea>
+                    <textarea name="description" id="description" class="form-control" required><?= isset($description)?htmlspecialchars($description):'';?></textarea>
                 </td>
             </tr>
             <tr>
