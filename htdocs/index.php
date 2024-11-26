@@ -295,3 +295,30 @@ echo '</pre>';
 
 </body>
 </html>
+
+<!--
+
+CREATE DATABASE users;
+
+-- Switch to the created database
+USE users;
+
+-- Create the userdata table with id, username, and password
+CREATE TABLE userdata (
+    id INT AUTO_INCREMENT PRIMARY KEY,  -- id is the primary key with auto increment
+    username VARCHAR(50) NOT NULL,      -- username, should be unique for each user
+    password VARCHAR(255) NOT NULL      -- password for the user
+);
+
+-- Create the profiledata table with name, surname, description, and gender
+CREATE TABLE profiledata (
+    id INT,                            -- id is a foreign key that references userdata
+    name VARCHAR(50) NOT NULL,          -- name of the user
+    surname VARCHAR(50) NOT NULL,       -- surname of the user
+    description TEXT,                   -- description about the user
+    gender VARCHAR(10),                 -- gender of the user
+    PRIMARY KEY (id),                   -- primary key for the profiledata table
+    FOREIGN KEY (id) REFERENCES userdata(id)  -- Foreign key relationship with userdata table
+);
+!-->
+
